@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM LEGO Lab</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>🧱 LLM LEGO Lab</h1>
+      <p class="subtitle">Monte frases com peças e veja como um modelo de linguagem “adivinha” o próximo bloco.</p>
+
+      <section class="panel">
+        <h2>1) Escolha peças (palavras)</h2>
+        <div id="tokenBox" class="token-box" aria-label="Caixa de palavras"></div>
+      </section>
+
+      <section class="panel">
+        <h2>2) Sua construção</h2>
+        <div id="sentence" class="sentence" aria-live="polite">(vazia)</div>
+        <div class="controls">
+          <button id="undoBtn">Desfazer</button>
+          <button id="clearBtn">Limpar</button>
+          <button id="predictBtn" class="primary">Prever próximo bloco</button>
+        </div>
+      </section>
+
+      <section class="panel prediction-panel">
+        <h2>3) Previsão do modelo</h2>
+        <p id="explain">Clique em “Prever próximo bloco” para ver a mágica.</p>
+        <div id="predictions" class="predictions"></div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Dica: cada clique toca uma notinha estilo MIDI 🎵</small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
