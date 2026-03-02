@@ -3,7 +3,7 @@
   --card: #ffffff;
   --ink: #1e1f25;
   --muted: #697084;
-  --lego-red: #ff5a5f;
+  --lego-red: #ff6a6f;
   --lego-blue: #5b7cfa;
   --lego-yellow: #ffd84c;
   --lego-green: #54d28c;
@@ -42,6 +42,13 @@ h1 {
   box-shadow: var(--shadow);
   padding: 1rem;
   margin-bottom: 1rem;
+}
+
+.status-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .token-box,
@@ -109,7 +116,13 @@ button.primary {
   color: #fff;
 }
 
-#explain {
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#explain,
+#result {
   margin-top: 0;
   color: var(--muted);
 }
