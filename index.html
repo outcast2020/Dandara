@@ -9,10 +9,15 @@
   <body>
     <main class="app">
       <h1>🧱 LLM LEGO Lab</h1>
-      <p class="subtitle">Monte frases com peças e veja como um modelo de linguagem “adivinha” o próximo bloco.</p>
+      <p class="subtitle">Um mini game para aprender como modelos de linguagem escolhem o próximo bloco (palavra).</p>
+
+      <section class="panel status-panel">
+        <p id="mission"><strong>Missão:</strong> monte uma frase com 4 peças.</p>
+        <p id="score"><strong>Pontos:</strong> 0</p>
+      </section>
 
       <section class="panel">
-        <h2>1) Escolha peças (palavras)</h2>
+        <h2>1) Caixa de peças</h2>
         <div id="tokenBox" class="token-box" aria-label="Caixa de palavras"></div>
       </section>
 
@@ -21,20 +26,27 @@
         <div id="sentence" class="sentence" aria-live="polite">(vazia)</div>
         <div class="controls">
           <button id="undoBtn">Desfazer</button>
-          <button id="clearBtn">Limpar</button>
+          <button id="clearBtn">Limpar rodada</button>
           <button id="predictBtn" class="primary">Prever próximo bloco</button>
+          <button id="autoBtn">Modelo joga 1 peça</button>
         </div>
       </section>
 
       <section class="panel prediction-panel">
-        <h2>3) Previsão do modelo</h2>
-        <p id="explain">Clique em “Prever próximo bloco” para ver a mágica.</p>
+        <h2>3) O que o modelo acha?</h2>
+        <p id="explain">Clique em “Prever próximo bloco”.</p>
         <div id="predictions" class="predictions"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Resultado da rodada</h2>
+        <p id="result">Nenhuma rodada concluída ainda.</p>
+        <button id="nextRoundBtn" disabled>Próxima rodada</button>
       </section>
     </main>
 
     <footer>
-      <small>Dica: cada clique toca uma notinha estilo MIDI 🎵</small>
+      <small>Cada clique toca uma notinha estilo MIDI 🎵</small>
     </footer>
 
     <script src="app.js"></script>
