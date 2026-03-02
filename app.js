@@ -1,16 +1,6 @@
 const palette = ["red", "blue", "yellow", "green"];
 const vocab = ["eu", "quero", "gosto", "de", "montar", "brincar", "robôs", "histórias", "com", "lego"];
-
-const tokenBox = document.getElementById("tokenBox");
-const sentenceEl = document.getElementById("sentence");
-const predictionsEl = document.getElementById("predictions");
-const explainEl = document.getElementById("explain");
-
-const undoBtn = document.getElementById("undoBtn");
-const clearBtn = document.getElementById("clearBtn");
-const predictBtn = document.getElementById("predictBtn");
-
-const builtSentence = [];
+const targetLength = 4;
 
 const tinyModel = {
   "": { eu: 0.45, lego: 0.2, histórias: 0.2, robôs: 0.15 },
@@ -23,14 +13,33 @@ const tinyModel = {
   com: { lego: 0.6, robôs: 0.2, histórias: 0.2 },
 };
 
-const audio = {
-  ctx: null,
-  enabled: false,
+const state = {
+  builtSentence: [],
+  points: 0,
+  round: 1,
 };
+
+const tokenBox = document.getElementById("tokenBox");
+const sentenceEl = document.getElementById("sentence");
+const predictionsEl = document.getElementById("predictions");
+const explainEl = document.getElementById("explain");
+const missionEl = document.getElementById("mission");
+const scoreEl = document.getElementById("score");
+const resultEl = document.getElementById("result");
+
+const undoBtn = document.getElementById("undoBtn");
+const clearBtn = document.getElementById("clearBtn");
+const predictBtn = document.getElementById("predictBtn");
+const autoBtn = document.getElementById("autoBtn");
+const nextRoundBtn = document.getElementById("nextRoundBtn");
+
+const audio = { ctx: null, enabled: false };
 
 function ensureAudio() {
   if (!audio.ctx) {
-    audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audio.ctx = new Ctx();
   }
   audio.enabled = true;
 }
@@ -39,105 +48,167 @@ function midiToFreq(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-function playNote(midi = 60, duration = 0.15) {
+function playNote(midi = 60, duration = 0.14) {
   if (!audio.enabled || !audio.ctx) return;
-  const ctx = audio.ctx;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  const osc = audio.ctx.createOscillator();
+  const gain = audio.ctx.createGain();
+  const now = audio.ctx.currentTime;
 
   osc.type = "triangle";
   osc.frequency.value = midiToFreq(midi);
   gain.gain.value = 0.0001;
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(audio.ctx.destination);
 
-  const now = ctx.currentTime;
-  gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
   osc.start(now);
   osc.stop(now + duration + 0.02);
 }
 
+function updateHud() {
+  missionEl.innerHTML = `<strong>Missão:</strong> rodada ${state.round} — monte ${targetLength} peças.`;
+  scoreEl.innerHTML = `<strong>Pontos:</strong> ${state.points}`;
+}
+
+function makeBlock(tag, word, classIndex) {
+  const node = document.createElement(tag);
+  node.className = `block ${palette[classIndex % palette.length]}`;
+  node.textContent = word;
+  return node;
+}
+
 function renderTokenBox() {
+  tokenBox.innerHTML = "";
   vocab.forEach((word, index) => {
-    const btn = document.createElement("button");
-    btn.className = `block ${palette[index % palette.length]}`;
-    btn.textContent = word;
-    btn.addEventListener("click", () => {
-      ensureAudio();
-      playNote(60 + (index % 8) * 2, 0.14);
-      builtSentence.push(word);
-      renderSentence();
-    });
+    const btn = makeBlock("button", word, index);
+    btn.addEventListener("click", () => addWord(word, index));
     tokenBox.appendChild(btn);
   });
 }
 
 function renderSentence() {
   sentenceEl.innerHTML = "";
-
-  if (!builtSentence.length) {
+  if (!state.builtSentence.length) {
     sentenceEl.textContent = "(vazia)";
     return;
   }
 
-  builtSentence.forEach((word, idx) => {
-    const span = document.createElement("span");
-    span.className = `block ${palette[idx % palette.length]}`;
-    span.textContent = word;
-    sentenceEl.appendChild(span);
+  state.builtSentence.forEach((word, idx) => {
+    sentenceEl.appendChild(makeBlock("span", word, idx));
   });
 }
 
-function predictNext() {
-  ensureAudio();
-  playNote(72, 0.2);
+function getCandidates() {
+  const lastWord = state.builtSentence[state.builtSentence.length - 1] || "";
+  return tinyModel[lastWord] || tinyModel[""];
+}
 
-  predictionsEl.innerHTML = "";
-
-  const lastWord = builtSentence[builtSentence.length - 1] || "";
-  const candidates = tinyModel[lastWord] || tinyModel[""];
-
+function renderPredictions() {
+  const candidates = getCandidates();
   const sorted = Object.entries(candidates).sort((a, b) => b[1] - a[1]);
 
-  explainEl.textContent = lastWord
-    ? `O modelo olha para a última peça (“${lastWord}”) e busca padrões aprendidos.`
-    : "Sem peças ainda: o modelo usa probabilidades iniciais.";
-
+  predictionsEl.innerHTML = "";
   sorted.forEach(([word, prob], idx) => {
     const card = document.createElement("button");
     card.className = `block ${palette[idx % palette.length]}`;
     card.innerHTML = `${word} <span class="prob-badge">${Math.round(prob * 100)}%</span>`;
     card.addEventListener("click", () => {
-      playNote(67 + idx * 2, 0.18);
-      builtSentence.push(word);
-      renderSentence();
-      predictNext();
+      addWord(word, idx + 5);
     });
     predictionsEl.appendChild(card);
   });
+
+  const lastWord = state.builtSentence[state.builtSentence.length - 1];
+  explainEl.textContent = lastWord
+    ? `O modelo olhou para "${lastWord}" e calculou as próximas peças mais prováveis.`
+    : "Sem contexto ainda: o modelo usa probabilidades iniciais.";
+}
+
+function addWord(word, noteIndex = 0) {
+  if (state.builtSentence.length >= targetLength) return;
+  ensureAudio();
+  playNote(60 + (noteIndex % 10) * 2, 0.14);
+  state.builtSentence.push(word);
+  renderSentence();
+
+  if (state.builtSentence.length === targetLength) {
+    finishRound();
+  }
+}
+
+function evaluateSentence(sentence) {
+  let total = 0;
+  let prev = "";
+
+  sentence.forEach((word) => {
+    const options = tinyModel[prev] || tinyModel[""];
+    const p = options[word] || 0.01;
+    total += Math.log(p);
+    prev = word;
+  });
+
+  const normalized = Math.max(0, Math.round((total + 12) * 10));
+  return Math.min(100, normalized);
+}
+
+function finishRound() {
+  const quality = evaluateSentence(state.builtSentence);
+  const earned = 10 + Math.round(quality / 10);
+  state.points += earned;
+  updateHud();
+
+  ensureAudio();
+  playNote(76, 0.25);
+
+  resultEl.textContent = `Frase: "${state.builtSentence.join(" ")}" | Coerência do modelo: ${quality}% | +${earned} pontos!`;
+  explainEl.textContent = "Rodada concluída! Clique em Próxima rodada para continuar.";
+  nextRoundBtn.disabled = false;
 }
 
 undoBtn.addEventListener("click", () => {
-  if (!builtSentence.length) return;
+  if (!state.builtSentence.length) return;
   ensureAudio();
-  playNote(55, 0.1);
-  builtSentence.pop();
+  playNote(52, 0.1);
+  state.builtSentence.pop();
   renderSentence();
 });
 
 clearBtn.addEventListener("click", () => {
-  ensureAudio();
-  playNote(50, 0.1);
-  builtSentence.length = 0;
+  state.builtSentence = [];
   renderSentence();
   predictionsEl.innerHTML = "";
-  explainEl.textContent = "Clique em “Prever próximo bloco” para ver a mágica.";
+  explainEl.textContent = "Rodada limpa. Monte novas peças.";
 });
 
-predictBtn.addEventListener("click", predictNext);
+predictBtn.addEventListener("click", () => {
+  ensureAudio();
+  playNote(72, 0.18);
+  renderPredictions();
+});
 
+autoBtn.addEventListener("click", () => {
+  if (state.builtSentence.length >= targetLength) return;
+  ensureAudio();
+  const sorted = Object.entries(getCandidates()).sort((a, b) => b[1] - a[1]);
+  const [bestWord] = sorted[0];
+  addWord(bestWord, 8);
+  renderPredictions();
+});
+
+nextRoundBtn.addEventListener("click", () => {
+  state.round += 1;
+  state.builtSentence = [];
+  renderSentence();
+  predictionsEl.innerHTML = "";
+  explainEl.textContent = "Nova rodada iniciada!";
+  resultEl.textContent = "Monte 4 peças para fechar a rodada.";
+  nextRoundBtn.disabled = true;
+  updateHud();
+});
+
+updateHud();
 renderTokenBox();
 renderSentence();
